@@ -79,35 +79,50 @@ class MapSampleState extends State<MapSample> {
     ],
     // 線の太さ
     strokeWidth: 5,
+    // 真ん中を透明にして、線にする。
+    fillColor: Colors.transparent,
   );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GoogleMap(
-        mapType: MapType.normal,
-        // 二つ追加すると、二つピンが立つ
-        // markersを設定することで地図上にピンを置ける。
-        markers: {
-          _kGooglePlexMarker,
-          _kLakeMarker,
-        },
-        // polylinesを設定することで場所と場所を線で結ぶことができる。
-        polylines: {
-          _kPolyline,
-        },
-        polygons: {
-          _Polygon,
-        },
-        initialCameraPosition: _kGooglePlex,
-        onMapCreated: (GoogleMapController controller) {
-          _controller.complete(controller);
-        },
+      appBar: AppBar(
+        title: const Text('Google Maps'),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _goToTheLake,
-        label: const Text('To the lake!'),
-        icon: const Icon(Icons.directions_boat),
+      body: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: TextFormField()),
+              IconButton(
+                onPressed: () {},
+                icon: const  Icon(Icons.search),
+              ),
+            ],
+          ),
+          Expanded(
+            child: GoogleMap(
+              mapType: MapType.normal,
+              // 二つ追加すると、二つピンが立つ
+              // markersを設定することで地図上にピンを置ける。
+              markers: {
+                _kGooglePlexMarker,
+                // _kLakeMarker,
+              },
+              // polylinesを設定することで場所と場所を線で結ぶことができる。
+              polylines: {
+                _kPolyline,
+              },
+              polygons: {
+                _Polygon,
+              },
+              initialCameraPosition: _kGooglePlex,
+              onMapCreated: (GoogleMapController controller) {
+                _controller.complete(controller);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
