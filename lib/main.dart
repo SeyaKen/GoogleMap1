@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:googlemap1/location_service.dart';
 
@@ -39,13 +40,29 @@ class MapSampleState extends State<MapSample> {
   final Set<Marker> _markers = Set<Marker>();
   final Set<Polygon> _polygons = Set<Polygon>();
   List<LatLng> polygonLatLngs = <LatLng>[];
+  Set<Polyline> _polylines = Set<Polyline>();
 
   int _polygonIdCounter = 1;
+  int _polylineIdCounter = 1;
 
   @override
   void initState() {
     super.initState();
     _setMarker(const LatLng(37.42796133580664, -122.085749655962));
+  }
+
+  void _setPolyline(List<PointLatLng> points) {
+    final String polylineIdVal = 'polylines_$_polylineIdCounter';
+    _polylineIdCounter++;
+
+    _polylines.add(Polyline(
+      polylineId: PolylineId(polylineIdVal),
+      width: 2,
+      color: Colors.blue,
+      points: points
+          .map((point) => LatLng(point.latitude, point.longitude))
+          .toList(),
+    ));
   }
 
   void _setMarker(LatLng point) {
@@ -104,13 +121,21 @@ class MapSampleState extends State<MapSample> {
               ),
               IconButton(
                 onPressed: () async {
-                  LocationService().getDirections(
+                  var directions = await LocationService().getDirections(
                     _originController.text,
                     _destinationController.text,
                   );
+                  print('プリント');
+                  print(directions['polyline_decoded']);
                   // var place =
                   //     await LocationService().getPlace(_searchController.text);
-                  // _goToPlace(place);
+                  _goToPlacee(
+                    directions['start_location']['lat'],
+                    directions['start_location']['lng'],
+                    directions['bounds_ne'],
+                    directions['bounds_sw'],
+                  );
+                  _setPolyline(directions['polyline_decoded']);
                 },
                 icon: const Icon(Icons.search),
               ),
@@ -145,6 +170,7 @@ class MapSampleState extends State<MapSample> {
               // markersを設定することで地図上にピンを置ける。
               markers: _markers,
               polygons: _polygons,
+              polylines: _polylines,
               // polylinesを設定することで場所と場所を線で結ぶことができる。
               // polylines: {
               //   _kPolyline,
@@ -164,6 +190,29 @@ class MapSampleState extends State<MapSample> {
         ],
       ),
     );
+  }
+
+  Future<void> _goToPlacee(
+    double lat,
+    double lng,
+    Map<String, dynamic> boundsNe,
+    Map<String, dynamic> boundsSw,
+  ) async {
+    final GoogleMapController controller = await _controller.future;
+    controller.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+      target: LatLng(lat, lng),
+      zoom: 12,
+    )));
+
+    controller.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(boundsSw['lat'], boundsSw['lng']),
+          northeast: LatLng(boundsNe['lat'], boundsNe['lng']),
+      ), 25,
+    ));
+
+    _setMarker(LatLng(lat, lng));
   }
 
   Future<void> _goToPlace(Map<String, dynamic> place) async {
