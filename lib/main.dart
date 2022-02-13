@@ -28,62 +28,45 @@ class MapSample extends StatefulWidget {
 class MapSampleState extends State<MapSample> {
   final Completer<GoogleMapController> _controller = Completer();
   TextEditingController _searchController = TextEditingController();
+  TextEditingController _originController = TextEditingController();
+  TextEditingController _destinationController = TextEditingController();
 
   static const CameraPosition _kGooglePlex = CameraPosition(
     target: LatLng(37.42796133580664, -122.085749655962),
     zoom: 14.4746,
   );
 
-  // positionで指定したところの地図上に「ピン」を置く
-  static const Marker _kGooglePlexMarker = Marker(
-    markerId: MarkerId('_kGooglePlex'),
-    infoWindow: InfoWindow(title: '現在地'),
-    // ピン
-    icon: BitmapDescriptor.defaultMarker,
-    // ピンを置く場所
-    position: LatLng(37.42796133580664, -122.085749655962),
-  );
+  final Set<Marker> _markers = Set<Marker>();
+  final Set<Polygon> _polygons = Set<Polygon>();
+  List<LatLng> polygonLatLngs = <LatLng>[];
 
-  // 湖のpositionを指定
-  static final Marker _kLakeMarker = Marker(
-    markerId: const MarkerId('_kGooglePlex'),
-    infoWindow: const InfoWindow(title: 'みずうみ'),
-    // ピンの色を変えることができる※デフォルトは赤
-    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-    position: const LatLng(37.43296265331129, -122.08832357078792),
-  );
+  int _polygonIdCounter = 1;
 
-  static const CameraPosition _kLake = CameraPosition(
-      bearing: 192.8334901395799,
-      target: LatLng(37.43296265331129, -122.08832357078792),
-      tilt: 59.440717697143555,
-      zoom: 19.151926040649414);
+  @override
+  void initState() {
+    super.initState();
+    _setMarker(const LatLng(37.42796133580664, -122.085749655962));
+  }
 
-  // 二つの点を結ぶ
-  static const Polyline _kPolyline = Polyline(
-    polylineId: PolylineId('_kPolyline'),
-    points: [
-      LatLng(37.42796133580664, -122.085749655962),
-      LatLng(37.43296265331129, -122.08832357078792),
-    ],
-    // 線の太さ
-    width: 5,
-  );
+  void _setMarker(LatLng point) {
+    setState(() {
+      _markers.add(Marker(
+        markerId: const MarkerId('marker'),
+        position: point,
+      ));
+    });
+  }
 
-  // 線ではなく多角形もできる。
-  static const Polygon _Polygon = Polygon(
-    polygonId: PolygonId('_kPolygon'),
-    points: [
-      LatLng(37.43296265331129, -122.08832357078792),
-      LatLng(37.42796133580664, -122.085749655962),
-      LatLng(37.418, -122.092),
-      LatLng(37.435, -122.092),
-    ],
-    // 線の太さ
-    strokeWidth: 5,
-    // 真ん中を透明にして、線にする。
-    fillColor: Colors.transparent,
-  );
+  void _setPolygon() {
+    final polygonIdVal = 'polygon_$_polygonIdCounter';
+    _polygonIdCounter++;
+    _polygons.add(Polygon(
+      polygonId: PolygonId(polygonIdVal),
+      points: polygonLatLngs,
+      strokeWidth: 2,
+      fillColor: Colors.transparent,
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,44 +79,85 @@ class MapSampleState extends State<MapSample> {
           Row(
             children: [
               Expanded(
-                  child: TextFormField(
-                controller: _searchController,
-                // 単語の最初の文字だけ大文字
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  hintText: '探す',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _originController,
+                      // 単語の最初の文字だけ大文字
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        hintText: '出発点',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                    ),
+                    TextFormField(
+                      controller: _destinationController,
+                      // 単語の最初の文字だけ大文字
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        hintText: '目的地',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                    )
+                  ],
                 ),
-              )),
+              ),
               IconButton(
                 onPressed: () async {
-                  var place =
-                      await LocationService().getPlace(_searchController.text);
-                  _goToPlace(place);
+                  LocationService().getDirections(
+                    _originController.text,
+                    _destinationController.text,
+                  );
+                  // var place =
+                  //     await LocationService().getPlace(_searchController.text);
+                  // _goToPlace(place);
                 },
                 icon: const Icon(Icons.search),
               ),
             ],
           ),
+          // Row(
+          //   children: [
+          //     Expanded(
+          //         child: TextFormField(
+          //       controller: _searchController,
+          //       // 単語の最初の文字だけ大文字
+          //       textCapitalization: TextCapitalization.words,
+          //       decoration: const InputDecoration(
+          //         hintText: '探す',
+          //         contentPadding: EdgeInsets.symmetric(horizontal: 10),
+          //       ),
+          //     )),
+          //     IconButton(
+          //       onPressed: () async {
+          //         var place =
+          //             await LocationService().getPlace(_searchController.text);
+          //         _goToPlace(place);
+          //       },
+          //       icon: const Icon(Icons.search),
+          //     ),
+          //   ],
+          // ),
           Expanded(
             child: GoogleMap(
               mapType: MapType.normal,
               // 二つ追加すると、二つピンが立つ
               // markersを設定することで地図上にピンを置ける。
-              markers: {
-                _kGooglePlexMarker,
-                // _kLakeMarker,
-              },
+              markers: _markers,
+              polygons: _polygons,
               // polylinesを設定することで場所と場所を線で結ぶことができる。
-              polylines: {
-                _kPolyline,
-              },
-              polygons: {
-                _Polygon,
-              },
+              // polylines: {
+              //   _kPolyline,
+              // },
               initialCameraPosition: _kGooglePlex,
               onMapCreated: (GoogleMapController controller) {
                 _controller.complete(controller);
+              },
+              onTap: (point) {
+                setState(() {
+                  polygonLatLngs.add(point);
+                  _setPolygon();
+                });
               },
             ),
           ),
@@ -153,10 +177,7 @@ class MapSampleState extends State<MapSample> {
       target: LatLng(lat, lng),
       zoom: 12,
     )));
-  }
 
-  Future<void> _goToTheLake() async {
-    final GoogleMapController controller = await _controller.future;
-    controller.animateCamera(CameraUpdate.newCameraPosition(_kLake));
+    _setMarker(LatLng(lat, lng));
   }
 }
