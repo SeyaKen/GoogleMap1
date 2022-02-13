@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:googlemap1/location_service.dart';
 
 void main() => runApp(const MyApp());
 
@@ -26,6 +27,7 @@ class MapSample extends StatefulWidget {
 
 class MapSampleState extends State<MapSample> {
   final Completer<GoogleMapController> _controller = Completer();
+  TextEditingController _searchController = TextEditingController();
 
   static const CameraPosition _kGooglePlex = CameraPosition(
     target: LatLng(37.42796133580664, -122.085749655962),
@@ -69,7 +71,7 @@ class MapSampleState extends State<MapSample> {
   );
 
   // 線ではなく多角形もできる。
-  static const  Polygon _Polygon = Polygon(
+  static const Polygon _Polygon = Polygon(
     polygonId: PolygonId('_kPolygon'),
     points: [
       LatLng(37.43296265331129, -122.08832357078792),
@@ -93,10 +95,23 @@ class MapSampleState extends State<MapSample> {
         children: [
           Row(
             children: [
-              Expanded(child: TextFormField()),
+              Expanded(
+                  child: TextFormField(
+                controller: _searchController,
+                // 単語の最初の文字だけ大文字
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  hintText: '探す',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                ),
+              )),
               IconButton(
-                onPressed: () {},
-                icon: const  Icon(Icons.search),
+                onPressed: () async {
+                  var place =
+                      await LocationService().getPlace(_searchController.text);
+                  _goToPlace(place);
+                },
+                icon: const Icon(Icons.search),
               ),
             ],
           ),
@@ -125,6 +140,19 @@ class MapSampleState extends State<MapSample> {
         ],
       ),
     );
+  }
+
+  Future<void> _goToPlace(Map<String, dynamic> place) async {
+    // 緯度
+    final double lat = place['geometry']['location']['lat'];
+    // 経度
+    final double lng = place['geometry']['location']['lng'];
+
+    final GoogleMapController controller = await _controller.future;
+    controller.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+      target: LatLng(lat, lng),
+      zoom: 12,
+    )));
   }
 
   Future<void> _goToTheLake() async {
